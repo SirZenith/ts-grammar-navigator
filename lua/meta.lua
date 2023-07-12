@@ -11,7 +11,7 @@
 
 ---@class NodeInfo : NodeSimpleInfo
 ---@field fields? { [string]: NodeChildInfo }
----@field chhildren? { [string]: NodeChildInfo }
+---@field children? NodeChildInfo
 
 ---@class CompletionItem
 ---@field label string
