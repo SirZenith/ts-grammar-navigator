@@ -43,6 +43,7 @@ function GrammarSource:is_available()
     return self.node_type ~= nil
 end
 
+-- Completion only start on a line ends with pattern `%(%S*`.
 ---@param params any
 ---@param callback fun(result: { items: CompletionItem[], isIncomplete: boolean } | nil)
 function GrammarSource:complete(params, callback)
@@ -51,14 +52,13 @@ function GrammarSource:complete(params, callback)
     end
 
     local line = params.context.cursor_before_line
-    local last_character = line:sub(params.offset)
-    local input = line:match("[%(%s](%S*)$") or ""
-    if input == "" and last_character ~= "(" then
+    local input = line:match("%((%S*)$")
+    if not input then
         callback(nil)
         return
     end
 
-    local parent_node = self:_input_line_back_trace(params)
+    local parent_node = self:_find_parent_node(params)
     local info = self.node_type[parent_node]
     if not info then
         callback(nil)
@@ -93,36 +93,6 @@ function GrammarSource:load_node_types(file_path)
     self.node_type = node_type
 end
 
----@param params any
----@return string parent_node
-function GrammarSource:_input_line_back_trace(params)
-    local range_ed = params.context.cursor.line + 1
-    local range_st = math.max(0, range_ed - 2)
-    local lines = nvim_buf_get_lines(0, range_st, range_ed, false)
-    local content = table.concat(lines, " ")
-    local nodes = self:_find_nodes_from_line(content)
-
-    local last_character = params.context.cursor_before_line:sub(params.offset)
-    local result = table.remove(nodes)
-    if last_character ~= "(" then
-        -- `result` is the node that needs completion
-        -- pop one more to get its parent
-        result = table.remove(nodes)
-    end
-
-    return result
-end
-
----@param line string
----@return string[] nodes
-function GrammarSource:_find_nodes_from_line(line)
-    local nodes = {}
-    for node in line:gmatch("%(%s*(%S-)[%(%)%s]") do
-        table.insert(nodes, node)
-    end
-    return nodes
-end
-
 ---@param info NodeInfo
 ---@return CompletionItem[]
 function GrammarSource:_gen_completion(info)
@@ -154,6 +124,96 @@ function GrammarSource:_append_comp_item(list, label)
         dup = 0,
         kind = vim.lsp.protocol.CompletionItemKind.Field,
     })
+end
+
+-- ----------------------------------------------------------------------------
+
+---@param params any
+---@return string | nil parent_node
+function GrammarSource:_find_parent_node(params)
+    local result = self:_check_cursor_line(params) or self:_check_earlier_lines(params)
+    return result or ""
+end
+
+---@param params any
+---@return string | nil parent_node
+function GrammarSource:_check_cursor_line(params)
+    local line = params.context.cursor_before_line
+    -- skip incomplete name at the end of the line
+    local skip_cnt = line:sub(#line) ~= "(" and 1 or 0
+    return self:_find_last_open_node(line,skip_cnt)
+end
+
+-- Try finding parent node on each earlier line, until a parent node is found,
+-- or an empty line/line with only `-` is encountered.
+---@param params any
+function GrammarSource:_check_earlier_lines(params)
+    local result
+
+    local curline = params.context.cursor.line
+    for index = curline - 1, 1, -1 do
+        local line = nvim_buf_get_lines(0, index, index + 1, true)[1]
+        if line:match("^%s*$") or line:match("^%-+$") then
+            break
+        end
+
+        result = self:_find_last_open_node(line)
+        if result then
+            break
+        end
+    end
+
+    return result
+end
+
+---@param line string
+---@param skip_cnt? number
+---@return string | nil node_name
+function GrammarSource:_find_last_open_node(line, skip_cnt)
+    local len = #line
+    local nested_level = 0
+    local st, ed
+    local read_non_name = true
+    skip_cnt = skip_cnt or 0
+
+    local result
+
+    for i = len, 1, -1 do
+        local char = line:sub(i, i)
+        if char == "(" then
+            -- valid sub string range
+            local ok = nested_level == 0 and st and ed and st <= ed
+            if not ok then
+                -- pass
+            elseif skip_cnt > 0 then
+                skip_cnt = skip_cnt - 1
+            else
+                result = line:sub(st, ed)
+                break
+            end
+            nested_level = math.max(0, nested_level - 1)
+            read_non_name = true
+        elseif char == ")" then
+            nested_level = nested_level + 1
+            read_non_name = true
+        elseif char == " "
+            or char == "\t"
+            or char == "\v"
+            or char == "\r"
+            or char == "\n"
+        then
+            read_non_name = true
+        else
+            if read_non_name then
+                ed = i
+            else
+                st = i
+            end
+            read_non_name = false
+        end
+    end
+
+    return result
 end
 
 -- ----------------------------------------------------------------------------
