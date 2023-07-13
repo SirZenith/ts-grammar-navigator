@@ -92,17 +92,19 @@ local handlers = {
 ---@param buf number
 ---@param node_name string
 local function write_hint_to_buf(buf, node_name)
-    local buffer = {}
-    formatter.format(buffer, rules and rules[node_name])
-
-    local lines = { ("-- %s --"):format(node_name) }
-    local line_buffer = {}
-    local highlight = {}
+    local buffer = {
+        "-- ", { node_name, highlight = "@type" }, " --", formatter.NEW_LINE,
+    }
+    local format_env = {
+        buffer = buffer,
+        rules = rules,
+    }
+    formatter.format(format_env, rules and rules[node_name])
 
     local env = {
-        lines = lines,
-        line_buffer = line_buffer,
-        highlight = highlight,
+        lines = {},
+        line_buffer = {},
+        highlight = {},
         offset = 0,
     }
 
@@ -114,12 +116,12 @@ local function write_hint_to_buf(buf, node_name)
         end
     end
 
-    if #line_buffer ~= 0 then
-        table.insert(lines, table.concat(line_buffer))
+    if #env.line_buffer ~= 0 then
+        table.insert(env.lines, table.concat(env.line_buffer))
     end
 
-    panelpal.write_to_buf(buf, lines, PanelContentUpdateMethod.override)
-    draw_highlight(buf, highlight)
+    panelpal.write_to_buf(buf, env.lines, PanelContentUpdateMethod.override)
+    draw_highlight(buf, env.highlight)
 end
 
 -- ----------------------------------------------------------------------------

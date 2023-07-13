@@ -30,10 +30,11 @@ local function nl_indent(buffer, indent_level, skip_nl)
     add_indent(buffer, indent_level)
 end
 
+---@param buffer string[]
 ---@param value string
 ---@param hl_name string
-local function hl(value, hl_name)
-    return { value, highlight = hl_name }
+local function add_hl(buffer, value, hl_name)
+    table.insert(buffer, { value, highlight = hl_name })
 end
 
 -- ----------------------------------------------------------------------------
@@ -49,11 +50,10 @@ function M.format(env, info, indent, skip_nl)
     local rules = env.rules
 
     if info.name and info.name:sub(1, 1) == TRANSPARENT_PREFIX then
-        M.format_rule_info(env.buffer, rules and rules[info.name], indent, skip_nl)
+        M.format(env, rules and rules[info.name], indent, skip_nl)
     else
-        vim.print(info.type)
         local formatter = M[info.type]
-        formatter(env.buffer, info, indent, skip_nl)
+        formatter(env, info, indent, skip_nl)
     end
 end
 
@@ -61,9 +61,9 @@ M.ALIAS = function(env, info, indent, skip_nl)
     local buffer = env.buffer
 
     nl_indent(buffer, indent, skip_nl)
-    table.insert(buffer, hl(info.value, "@define"))
+    add_hl(buffer, info.value, "@define")
     table.insert(buffer, " (")
-    table.insert(buffer, { info.content.name, highlight = "@variable" })
+    add_hl(buffer, info.content.name, "@variable")
     table.insert(buffer, ")")
 end
 
@@ -71,17 +71,17 @@ M.BLANK = function(env, info, indent, skip_nl)
     local buffer = env.buffer
 
     nl_indent(buffer, indent, skip_nl)
-    table.insert(buffer, hl("BLANK", "@constant.builtin"))
+    add_hl(buffer, "BLANK", "@constant.builtin")
 end
 
 M.FIELD = function(env, info, indent, skip_nl)
     local buffer = env.buffer
 
     nl_indent(buffer, indent, skip_nl)
-    table.insert(buffer, "#[")
-    table.insert(buffer, { info.value, highlight = "@define" })
-    table.insert(buffer, "]: ")
-    M.format_rule_info(buffer, info.content, indent, true)
+    add_hl(buffer, "#[", "@operator")
+    add_hl(buffer, info.name, "@label")
+    add_hl(buffer, "]: ", "@operator")
+    M.format(env, info.content, indent, true)
 end
 
 M.CHOICE = function(env, info, indent, skip_nl)
@@ -100,83 +100,85 @@ M.CHOICE = function(env, info, indent, skip_nl)
         end
 
         if child then
-            M.format_rule_info(buffer, child, indent)
+            M.format(env, child, indent)
             return
         end
     end
 
     nl_indent(buffer, indent, skip_nl)
-    table.insert(buffer, "[")
+    add_hl(buffer, "[", "@punctuation.special")
 
     for _, child in ipairs(info.members) do
-        M.format_rule_info(buffer, child, indent + 1)
+        M.format(env, child, indent + 1)
     end
 
     nl_indent(buffer, indent)
-    table.insert(buffer, "]")
+    add_hl(buffer, "]", "@punctuation.special")
 end
 
 M.OPTIONAL = function(env, info, indent, skip_nl)
     local buffer = env.buffer
 
     nl_indent(buffer, indent, skip_nl)
-    table.insert(buffer, "?")
-    M.format_rule_info(buffer, info.content, indent, true)
+    add_hl(buffer, "?", "@keyword")
+    M.format(env, info.content, indent, true)
 end
 
 M.PREC = function(env, info, indent, skip_nl)
     local buffer = env.buffer
 
-    M.format_rule_info(buffer, info.content, indent)
+    M.format(env, info.content, indent)
 end
 
 M.PREC_LEFT = function(env, info, indent, skip_nl)
     local buffer = env.buffer
 
-    M.format_rule_info(buffer, info.content, indent)
+    M.format(env, info.content, indent)
 end
 
 M.PREC_RIGHT = function(env, info, indent, skip_nl)
     local buffer = env.buffer
 
-    M.format_rule_info(buffer, info.content, indent)
+    M.format(env, info.content, indent)
 end
 
 M.PREC_DYNAMIC = function(env, info, indent, skip_nl)
     local buffer = env.buffer
 
-    M.format_rule_info(buffer, info.content, indent)
+    M.format(env, info.content, indent)
 end
 
 M.REPEAT = function(env, info, indent, skip_nl)
     local buffer = env.buffer
 
     nl_indent(buffer, indent, skip_nl)
-    table.insert(buffer, "*{")
+    add_hl(buffer, "*", "@keyword")
+    add_hl(buffer, "{", "@punctuation.special")
 
-    M.format_rule_info(buffer, info.content, indent + 1)
+    M.format(env, info.content, indent + 1)
 
     nl_indent(buffer, indent)
-    table.insert(buffer, "}")
+    add_hl(buffer, "}", "@punctuation.special")
 end
 
 M.REPEAT1 = function(env, info, indent, skip_nl)
     local buffer = env.buffer
 
     nl_indent(buffer, indent, skip_nl)
-    table.insert(buffer, "+{")
+    add_hl(buffer, "+", "@keyword")
+    add_hl(buffer, "{", "@punctuation.special")
 
-    M.format_rule_info(buffer, info.content, indent + 1)
+    M.format(env, info.content, indent + 1)
 
     nl_indent(buffer, indent)
-    table.insert(buffer, "}")
+    add_hl(buffer, "}", "@punctuation.special")
 end
 
 M.SEQ = function(env, info, indent, skip_nl)
     local buffer = env.buffer
 
     for _, child in ipairs(info.members) do
-        M.format_rule_info(buffer, child, indent)
+        M.format(env, child, indent)
     end
 end
 
@@ -190,13 +192,13 @@ end
 M.TOKEN = function(env, info, indent, skip_nl)
     local buffer = env.buffer
 
-    M.format_rule_info(buffer, info.content, indent)
+    M.format(env, info.content, indent)
 end
 
 M.IMMEDIATE_TOKEN = function(env, info, indent, skip_nl)
     local buffer = env.buffer
 
-    M.format_rule_info(buffer, info.content, indent)
+    M.format(env, info.content, indent)
 end
 
 M.STRING = function(env, info, indent, skip_nl)
@@ -207,19 +209,14 @@ M.STRING = function(env, info, indent, skip_nl)
         :gsub("\r", "\\r")
         :gsub("\t", "\\t")
         :gsub("\v", "\\v")
-    table.insert(buffer, {
-        highlight = "@string",
-        ('"%s"'):format(text)
-    })
+    add_hl(buffer, ('"%s"'):format(text), "@string")
 end
 
 M.PATTERN = function(env, info, indent, skip_nl)
     local buffer = env.buffer
 
     nl_indent(buffer, indent, skip_nl)
-    table.insert(buffer, "`")
-    table.insert(buffer, info.value)
-    table.insert(buffer, "`")
+    add_hl(buffer, ("/%s/"):format(info.value), "@string.regex")
 end
 
 return M
