@@ -1,6 +1,6 @@
 local NEW_LINE = "\n"
 local HINT_INDENT = "    "
-local CHOICE_CHILD_PREFIX = "|    "
+local CHOICE_CHILD_PREFIX = { "|" .. HINT_INDENT:sub(2), highlight = "@comment"}
 local TRANSPARENT_PREFIX = "_"
 
 local M = {
@@ -11,23 +11,29 @@ local M = {
 
 ---@param buffer string[]
 ---@param indent_level number
-local function add_indent(buffer, indent_level)
+---@param special_indent? string | table
+local function add_indent(buffer, indent_level, special_indent)
     if indent_level <= 0 then return end
-    for _ = 1, indent_level do
+
+    local last_indent = special_indent or HINT_INDENT
+
+    for _ = 1, indent_level - 1 do
         table.insert(buffer, HINT_INDENT)
     end
+    table.insert(buffer, last_indent)
 end
 
 ---@param buffer string[]
 ---@param indent_level number
 ---@param skip_nl? boolean
-local function nl_indent(buffer, indent_level, skip_nl)
+---@param special_indent? string | table
+local function nl_indent(buffer, indent_level, skip_nl, special_indent)
     if skip_nl or indent_level < 0 then
         return
     end
 
     table.insert(buffer, NEW_LINE)
-    add_indent(buffer, indent_level)
+    add_indent(buffer, indent_level, special_indent)
 end
 
 ---@param buffer string[]
@@ -61,10 +67,8 @@ M.ALIAS = function(env, info, indent, skip_nl)
     local buffer = env.buffer
 
     nl_indent(buffer, indent, skip_nl)
-    add_hl(buffer, info.value, "@define")
-    table.insert(buffer, " (")
     add_hl(buffer, info.content.name, "@variable")
-    table.insert(buffer, ")")
+    add_hl(buffer, " @" .. info.value, "@function")
 end
 
 M.BLANK = function(env, info, indent, skip_nl)
@@ -79,8 +83,9 @@ M.FIELD = function(env, info, indent, skip_nl)
 
     nl_indent(buffer, indent, skip_nl)
     add_hl(buffer, "#[", "@operator")
-    add_hl(buffer, info.name, "@label")
+    add_hl(buffer, info.name, "@attribute")
     add_hl(buffer, "]: ", "@operator")
+
     M.format(env, info.content, indent, true)
 end
 
@@ -109,7 +114,8 @@ M.CHOICE = function(env, info, indent, skip_nl)
     add_hl(buffer, "[", "@punctuation.special")
 
     for _, child in ipairs(info.members) do
-        M.format(env, child, indent + 1)
+        nl_indent(buffer, indent + 1, false, CHOICE_CHILD_PREFIX)
+        M.format(env, child, indent + 1, true)
     end
 
     nl_indent(buffer, indent)
@@ -127,25 +133,25 @@ end
 M.PREC = function(env, info, indent, skip_nl)
     local buffer = env.buffer
 
-    M.format(env, info.content, indent)
+    M.format(env, info.content, indent, skip_nl)
 end
 
 M.PREC_LEFT = function(env, info, indent, skip_nl)
     local buffer = env.buffer
 
-    M.format(env, info.content, indent)
+    M.format(env, info.content, indent, skip_nl)
 end
 
 M.PREC_RIGHT = function(env, info, indent, skip_nl)
     local buffer = env.buffer
 
-    M.format(env, info.content, indent)
+    M.format(env, info.content, indent, skip_nl)
 end
 
 M.PREC_DYNAMIC = function(env, info, indent, skip_nl)
     local buffer = env.buffer
 
-    M.format(env, info.content, indent)
+    M.format(env, info.content, indent, skip_nl)
 end
 
 M.REPEAT = function(env, info, indent, skip_nl)
@@ -177,9 +183,14 @@ end
 M.SEQ = function(env, info, indent, skip_nl)
     local buffer = env.buffer
 
+    nl_indent(buffer, indent, skip_nl)
+    add_hl(buffer, "(", "@punctuation.special_indent")
     for _, child in ipairs(info.members) do
-        M.format(env, child, indent)
+        M.format(env, child, indent + 1)
+        table.insert(buffer, ",")
     end
+    nl_indent(buffer, indent)
+    add_hl(buffer, ")", "@punctuation.special_indent")
 end
 
 M.SYMBOL = function(env, info, indent, skip_nl)
@@ -192,13 +203,13 @@ end
 M.TOKEN = function(env, info, indent, skip_nl)
     local buffer = env.buffer
 
-    M.format(env, info.content, indent)
+    M.format(env, info.content, indent, skip_nl)
 end
 
 M.IMMEDIATE_TOKEN = function(env, info, indent, skip_nl)
     local buffer = env.buffer
 
-    M.format(env, info.content, indent)
+    M.format(env, info.content, indent, skip_nl)
 end
 
 M.STRING = function(env, info, indent, skip_nl)
@@ -209,6 +220,7 @@ M.STRING = function(env, info, indent, skip_nl)
         :gsub("\r", "\\r")
         :gsub("\t", "\\t")
         :gsub("\v", "\\v")
+        :gsub('"', '\\"')
     add_hl(buffer, ('"%s"'):format(text), "@string")
 end
 
