@@ -61,10 +61,12 @@ end
 
 ---@param line string
 ---@param skip_cnt? number
+---@param nested_level? number
 ---@return string | nil node_name
-local function find_last_open_node(line, skip_cnt)
+---@return number nested_level
+local function find_last_open_node(line, skip_cnt, nested_level)
     local len = #line
-    local nested_level = 0
+    nested_level = nested_level or 0
     local st, ed
     local read_non_name = true
     skip_cnt = skip_cnt or 0
@@ -106,11 +108,12 @@ local function find_last_open_node(line, skip_cnt)
         end
     end
 
-    return result
+    return result, nested_level
 end
 
 ---@param params any
 ---@return string | nil parent_node
+---@return number nested_level
 local function check_cursor_line(params)
     local line = params.context.cursor_before_line
     -- skip incomplete name at the end of the line
@@ -121,7 +124,8 @@ end
 -- Try finding parent node on each earlier line, until a parent node is found,
 -- or an empty line/line with only `-` is encountered.
 ---@param params any
-local function check_earlier_lines(params)
+---@param nested_level number
+local function check_earlier_lines(params, nested_level)
     local result
 
     local curline = params.context.cursor.line
@@ -131,8 +135,8 @@ local function check_earlier_lines(params)
             break
         end
 
-        result = find_last_open_node(line)
-        if result then
+        result, nested_level = find_last_open_node(line, nil, nested_level)
+        if result and nested_level == 0 then
             break
         end
     end
@@ -143,7 +147,10 @@ end
 ---@param params any
 ---@return string | nil parent_node
 local function find_parent_node(params)
-    local result = check_cursor_line(params) or check_earlier_lines(params)
+    local result, nested_level = check_cursor_line(params)
+    if not result then
+        result = check_earlier_lines(params, nested_level)
+    end
     return result or ""
 end
 
