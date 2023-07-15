@@ -105,7 +105,7 @@ M.CHOICE = function(env, info, indent, skip_nl)
         end
 
         if child then
-            M.format(env, child, indent)
+            M.format(env, child, indent, skip_nl)
             return
         end
     end
@@ -114,8 +114,7 @@ M.CHOICE = function(env, info, indent, skip_nl)
     add_hl(buffer, "[", "@punctuation.special")
 
     for _, child in ipairs(info.members) do
-        nl_indent(buffer, indent + 1, false, CHOICE_CHILD_PREFIX)
-        M.format(env, child, indent + 1, true)
+        M.format(env, child, indent + 1)
     end
 
     nl_indent(buffer, indent)
