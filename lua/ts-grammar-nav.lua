@@ -2,6 +2,7 @@ local event = require "ts-grammar-nav.event"
 local source = require "ts-grammar-nav.source"
 local grammar_hint = require "ts-grammar-nav.grammar-hint"
 local formatting = require "ts-grammar-nav.formatting"
+local commands = require "ts-grammar-nav.commands"
 
 local M = {}
 
@@ -18,6 +19,7 @@ function M.setup(options)
     formatting.setup({
         indent = options.indent
     })
+    commands.setup()
 end
 
 return M

@@ -229,6 +229,11 @@ local function on_dir_changed(info)
     try_load_node_types(dir)
 end
 
+local function on_reload()
+    local dir = vim.fn.getcwd()
+    try_load_node_types(dir)
+end
+
 -- ----------------------------------------------------------------------------
 
 ---@return string[]
@@ -276,6 +281,7 @@ end
 function M:init()
     event:on_autocmd("VimEnter", on_vim_enter)
     event:on_autocmd("DirChanged", on_dir_changed)
+    event:on("Reload", on_reload)
 end
 
 return M

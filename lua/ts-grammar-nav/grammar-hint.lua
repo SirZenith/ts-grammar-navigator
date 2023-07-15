@@ -45,7 +45,10 @@ local api = vim.api
 local GRAMMAR_HINT_PANEL_NAME = "ts-grammar-navigator.grammar-hint"
 local GRAMMAR_HINT_HL_NS = 0
 
-local M = {}
+local M = {
+    GRAMMAR_HINT_HL_NS = GRAMMAR_HINT_HL_NS,
+    GRAMMAR_HINT_PANEL_NAME = GRAMMAR_HINT_PANEL_NAME,
+}
 
 local rules = nil
 
@@ -175,6 +178,11 @@ local function on_update_parent_node(parent_node)
     M.write_hint(parent_node)
 end
 
+local function on_reload()
+    local dir = vim.fn.getcwd()
+    try_load_grammar(dir)
+end
+
 -- ----------------------------------------------------------------------------
 
 ---@param force_show boolean
@@ -220,22 +228,11 @@ end
 
 -- ----------------------------------------------------------------------------
 
-vim.api.nvim_create_user_command("TSNaviShowHint", function()
-    panelpal.set_panel_visibility(GRAMMAR_HINT_PANEL_NAME, true)
-end, {
-    desc = "display tree-sitter grammar hint panel"
-})
-
-vim.api.nvim_create_user_command("TSNaviHideHit", function()
-    panelpal.set_panel_visibility(GRAMMAR_HINT_PANEL_NAME, false)
-end, {
-    desc = "hide tree-sitter grammar hint panel"
-})
-
 function M:init()
     event:on_autocmd("VimEnter", on_vim_enter)
     event:on_autocmd("DirChanged", on_dir_changed)
     event:on("UpdateParentNode", on_update_parent_node)
+    event:on("Reload", on_reload)
 end
 
 return M

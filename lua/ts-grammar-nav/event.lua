@@ -16,7 +16,10 @@ local autocmd_channels = {
 
 ---@type ChannelGroup
 local channels = {
-    UpdateParentNode = {}, -- fun(node_name: string)
+    -- fun()
+    Reload = {},
+    -- fun(node_name: string)
+    UpdateParentNode = {},
 }
 
 -- ----------------------------------------------------------------------------

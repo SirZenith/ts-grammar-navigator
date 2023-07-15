@@ -103,7 +103,7 @@ local function format_node(buffer, node, indent)
     end
 end
 
-local function format()
+function M.format_selection()
     local text = panelpal.visual_selection_text()
     if not text then return end
 
@@ -124,10 +124,6 @@ end
 
 function M.setup(options)
     M.indent = options.indent or M.indent
-
-    vim.api.nvim_create_user_command("TSNaviFormatSelection", format, {
-        desc = "format selected S-expression"
-    })
 end
 
 return M
