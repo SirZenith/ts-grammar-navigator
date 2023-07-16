@@ -57,7 +57,7 @@ Your `src/node-types.json` file might get updated when you run `tree-sitter gene
 then if you want completion to uses latest `node-types.json` content, you need
 to run `TSNaviReload` command.
 
-![completion](./imgs/completion.png)
+<img src="./imgs/completion.png" width="50%"/>
 
 ## Syntax Token Hint
 
@@ -74,7 +74,11 @@ update grammar data.
 Every time you type in after a open parenthesis, hint panel's content will update
 to token info of nearest open parent.
 
-![grammar-hint](./imgs/grammar-hint.png)
+`[]` means choice, `()` is sequence, `*{}` and `+{}` are repeat and repeat1 recpectively.
+optional token is prefixed with `?`, string or regex token are displayed as quoted
+string. Field name is displayed as `#[name]`, alias is shown as `rule-name @alias-name`.
+
+<img src="./imgs/grammar-hint.png" width="40%"/>
 
 ## Test Case formatting
 
