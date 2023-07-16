@@ -18,7 +18,11 @@ local cmd_list = {
         "TSNaviFormatSelection",
         formatting.format_selection,
         desc = "format selected S-expression",
-        range = true,
+    },
+    {
+        "TSNaviFormatFile",
+        formatting.format_file,
+        desc = "format S-expression in current file."
     },
     {
         "TSNaviShowHint",
