@@ -79,7 +79,7 @@ local handlers = {
         end
     end,
     table = function(env, value)
-        local text = value[1]
+        local text = value[1] or "[anonymous]"
         local len = #text
         table.insert(env.line_buffer, text)
         table.insert(env.highlight, {

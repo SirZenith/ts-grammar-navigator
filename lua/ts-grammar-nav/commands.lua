@@ -12,12 +12,13 @@ local cmd_list = {
         function()
             event:emit("Reload")
         end,
-        desc = "reload grammar data from current workspace"
+        desc = "reload grammar data from current workspace",
     },
     {
         "TSNaviFormatSelection",
         formatting.format_selection,
-        desc = "format selected S-expression"
+        desc = "format selected S-expression",
+        range = true,
     },
     {
         "TSNaviShowHint",
@@ -27,7 +28,7 @@ local cmd_list = {
                 true
             )
         end,
-        desc = "display tree-sitter grammar hint panel"
+        desc = "display tree-sitter grammar hint panel",
     },
     {
         "TSNaviHideHit",
